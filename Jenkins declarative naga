@@ -1,0 +1,71 @@
+        pipeline{
+                agent any
+                tools{
+                    maven "maven3.6.3"
+                }
+                
+                options{
+                    buildDiscarder(logRotator(artifactDaysToKeepStr: '', artifactNumToKeepStr: '5', daysToKeepStr: '', numToKeepStr: '5'))
+                    
+                    timestamps()
+                        
+                } 
+                
+                stages{
+                    stage('checketoutcode'){
+                        steps{
+                            git branch: 'development', credentialsId: 'be7cda22-9d1a-482d-8dd4-b2cbf3b19585', url: 'https://github.com/tnr-ec-app/maven-web-application.git'
+                        }
+                        
+                    }
+                    stage('biuld'){
+                        steps{
+                            sh "mvn clean package"
+                        }
+                    }
+                    stage('executesonarquberepot'){
+                        steps{
+                            sh"mvn clean sonar:sonar"
+                        }
+                    }
+                    stage('uplodartifactintonexusrepo'){
+                        steps{
+                            sh"mvn clean deploy"
+                            
+                        }
+                    }
+                    stage('deploytheappintotomcatserver'){
+                        steps{
+                            sshagent(['e52cdca6-1431-4c59-aae1-d3fbe9321215']) {
+                                sh"scp -o  StrictHostKeyChecking=no target/maven-web-application.war ec2-user@13.233.152.129:/opt/apache-tomcat-9.0.54/webapps"
+
+
+                            }
+                        }
+                    }
+                    
+                    
+                    
+                    
+                    
+                }
+                post{
+                        success{
+                            mailext body: '''build success !!
+
+Regards,
+nagaraj devops engg,
+banglore.''', recipientProviders: [developers(), upstreamDevelopers(), buildUser(), brokenBuildSuspects(), requestor()], subject: 'build success !!', to: 'nagarajthoti29@gmail.com'
+                            
+                        }
+                        failure{
+                            mailext body: '''build failed !!
+
+Regards,
+nagaraj devops engg,
+banglore.''', recipientProviders: [developers(), upstreamDevelopers(), buildUser(), brokenBuildSuspects(), requestor()], subject: 'build failed !!', to: 'nagarajthoti29@gmail.com'
+                            
+                        }
+                    }
+                
+            }
